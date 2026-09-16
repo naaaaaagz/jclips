@@ -1,7 +1,7 @@
 {
-  "name": "Geri Clips",
-  "short_name": "Geri Clips",
-  "description": "AgeriVagyok streamjeinek emlékezetes klipjei térképen.",
+  "name": "JamalClips",
+  "short_name": "JamalClips",
+  "description": "A Courier's Life emlékezetes Twitch-klipjei térképen.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

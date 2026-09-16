@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const scriptStart = html.indexOf('<script type="module">') + '<script type="module">'.length;
+const scriptStart = html.indexOf("<script>") + "<script>".length;
 const scriptEnd = html.indexOf("</script>", scriptStart);
-if (scriptStart < '<script type="module">'.length || scriptEnd < 0) throw new Error("Standalone module script not found");
+if (scriptStart < "<script>".length || scriptEnd < 0) throw new Error("Standalone script not found");
 
-const code = html.slice(scriptStart, scriptEnd).replace(/^\s*import[^;]+;\s*/, "");
+const code = html.slice(scriptStart, scriptEnd);
 new Function(code);
 
-const expectedDescription = "AgeriVagyok streamjeinek emlékezetes klipjei térképen.";
+const expectedDescription = "A Courier's Life emlékezetes Twitch-klipjei térképen.";
 const requiredText = [
   `content="${expectedDescription}"`,
   "clip-source-keywords",
@@ -22,7 +22,8 @@ const requiredText = [
   "title-toggle",
   "country-borders-europe.geojson",
   "list-tab-wiggle",
-  "maplibre-gl-shared.mjs",
+  "https://www.twitch.tv/acourierslife",
+  'sizes="96x96" href="./favicon-96x96.png"',
 ];
 for (const value of requiredText) {
   if (!html.includes(value)) throw new Error(`Missing standalone output: ${value}`);
@@ -32,6 +33,9 @@ if (html.includes('"icon-offset":[0,-13]')) {
 }
 if (html.includes("setMissingStyleImageResolver")) {
   throw new Error("Raster-generated cluster icons must not be reintroduced");
+}
+if (html.includes("Zed streamjéből") || html.includes("zed-toggle")) {
+  throw new Error("The hidden Zed source filter must not be included");
 }
 
 console.log("Static HTML syntax and feature checks passed.");

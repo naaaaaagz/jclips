@@ -1,6 +1,6 @@
-# Geri Clips
+# JamalClips
 
-An interactive map of memorable clips from AgeriVagyok's streams. The GCLIPS spreadsheet is the source of truth, and its clips are shown on a dark, zoomable map with Twitch playback.
+An interactive map of memorable clips from A Courier's Life streams. The JAMAL CLIPS spreadsheet is the source of truth, and rows with coordinates are shown on a dark, zoomable map with Twitch playback.
 
 ## Open the standalone map
 

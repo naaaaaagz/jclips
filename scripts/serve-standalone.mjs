@@ -38,6 +38,6 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`Geri Clips is running at http://localhost:${port}`);
+  console.log(`JamalClips is running at http://localhost:${port}`);
   console.log("Keep this window open while using the map. Press Ctrl+C to stop.");
 });

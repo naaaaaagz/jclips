@@ -6,8 +6,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = resolve(ROOT, "data");
 const CACHE_FILE = resolve(DATA_DIR, "reverse-geocode-cache.json");
 const OUTPUT_FILE = resolve(DATA_DIR, "enriched-keywords.json");
-const SOURCE = "1rmCpUX9JnmWHKrqDtfjcjkf0eb1I5lQlg22QJc0d60w";
-const USER_AGENT = "GeriClipsMap/1.0";
+const PLACES_FILE = resolve(DATA_DIR, "places.json");
+const SOURCE = "17j3QkErkyeD6dNW8Qf7hF3tp9T7G4TW9PBui6sftmVc";
+const USER_AGENT = "JamalClipsMap/1.0 (https://github.com/naaaaaagz/jclips)";
 
 mkdirSync(DATA_DIR, { recursive: true });
 
@@ -182,8 +183,9 @@ async function fetchSheetRows() {
   const payload = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
   const value = (row, index) => row.c?.[index]?.v ?? "";
   return payload.table.rows.map((row, index) => ({
-    sheetRow: index + 1,
+    sheetRow: index + 2,
     name: tidy(value(row, 0)),
+    clipUrl: tidy(value(row, 1)),
     sourceKeywords: tidy(value(row, 3)),
     coordinates: tidy(value(row, 5)),
     country: tidy(value(row, 7)),
@@ -202,7 +204,7 @@ async function reverseGeocode(lat, lon) {
     "accept-language": "hu,en",
   });
   const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
-    headers: { "User-Agent": USER_AGENT, Referer: "https://naaaaaagz.github.io/zz/" },
+    headers: { "User-Agent": USER_AGENT, Referer: "https://github.com/naaaaaagz/jclips" },
   });
   if (!response.ok) throw new Error(`Nominatim returned ${response.status}`);
   return response.json();
@@ -240,6 +242,7 @@ const enriched = rows.map((row) => {
   return {
     sheetRow: row.sheetRow,
     name: row.name,
+    clipUrl: row.clipUrl,
     keywords: expandKeywords(row.sourceKeywords, locations),
     location: {
       name: reverse.name ?? "",
@@ -251,3 +254,17 @@ const enriched = rows.map((row) => {
 
 writeFileSync(OUTPUT_FILE, `${JSON.stringify(enriched, null, 2)}\n`, "utf8");
 console.log(`Wrote ${enriched.length} enriched keyword rows to ${OUTPUT_FILE}`);
+
+if (existsSync(PLACES_FILE)) {
+  const keywordsByClip = new Map(enriched.map((row) => [row.clipUrl, row.keywords]));
+  const places = JSON.parse(readFileSync(PLACES_FILE, "utf8"));
+  let updated = 0;
+  for (const place of places) {
+    const keywords = keywordsByClip.get(place.clipUrl);
+    if (keywords === undefined) continue;
+    place.keywords = keywords;
+    updated += 1;
+  }
+  writeFileSync(PLACES_FILE, `${JSON.stringify(places, null, 2)}\n`, "utf8");
+  console.log(`Updated ${updated}/${places.length} mapped clips in ${PLACES_FILE}`);
+}

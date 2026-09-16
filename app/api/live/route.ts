@@ -1,4 +1,4 @@
-const TWITCH_CHANNEL = "agerivagyok";
+const TWITCH_CHANNEL = "acourierslife";
 
 let cachedToken = "";
 let tokenExpiresAt = 0;

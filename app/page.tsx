@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-const TWITCH_URL = "https://www.twitch.tv/agerivagyok";
+const TWITCH_URL = "https://www.twitch.tv/acourierslife";
 const BASE_TILE_URL = "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png?key=cb1_25b0_1_cf52869ae38041a055110db7";
 const LABEL_TILE_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}";
 const MAP_STYLE: StyleSpecification = {
@@ -256,7 +256,7 @@ function placesToGeoJson(places: Place[]) {
   };
 }
 
-function makeTopStar(glow = 0, zed = false) {
+function makeTopStar(glow = 0) {
   const size = 80;
   const canvas = document.createElement("canvas");
   canvas.width = size; canvas.height = size;
@@ -279,11 +279,11 @@ function makeTopStar(glow = 0, zed = false) {
     return `rgb(${channels.map((channel) => Math.round(channel + (255 - channel) * glow * 0.52)).join(",")})`;
   };
   const gradient = context.createLinearGradient(8, 6, 31, 34);
-  gradient.addColorStop(0, brighten(zed ? "#fff0dc" : "#b9fff7"));
-  gradient.addColorStop(0.58, brighten(zed ? "#f6bd7b" : "#39d9cc"));
-  gradient.addColorStop(1, brighten(zed ? "#c8743f" : "#247fa3"));
+  gradient.addColorStop(0, brighten("#ffd1d1"));
+  gradient.addColorStop(0.58, brighten("#d98282"));
+  gradient.addColorStop(1, brighten("#a83f4b"));
   context.fillStyle = gradient; context.fill();
-  context.lineWidth = 2.5; context.strokeStyle = brighten("#071827"); context.stroke();
+  context.lineWidth = 2.5; context.strokeStyle = brighten("#f5b3b3"); context.stroke();
   return context.getImageData(0, 0, size, size);
 }
 
@@ -303,10 +303,20 @@ function makeTitleLabelBackground(hovered = false) {
 }
 
 function ClipPlayer({ clipId, parent, title }: { clipId: string; parent: string; title: string }) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const requestId = window.requestAnimationFrame(() => {
+      frame.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(clipId)}&parent=${encodeURIComponent(parent)}&autoplay=true&muted=true`;
+    });
+    return () => window.cancelAnimationFrame(requestId);
+  }, [clipId, parent]);
+
   return (
     <div className="player-frame">
-      <iframe src={`https://clips.twitch.tv/embed?clip=${encodeURIComponent(clipId)}&parent=${encodeURIComponent(parent)}&autoplay=true&muted=false`}
-        title={title} allow="autoplay; fullscreen" allowFullScreen />
+      <iframe ref={frameRef} title={title} allow="autoplay; fullscreen" allowFullScreen />
     </div>
   );
 }
@@ -330,7 +340,6 @@ export default function Home() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestionCursor, setSuggestionCursor] = useState(0);
   const [showTitles, setShowTitles] = useState(false);
-  const [showZed, setShowZed] = useState(true);
   const [listOpen, setListOpen] = useState(false);
   const [listTopOnly, setListTopOnly] = useState(false);
   const [listSort, setListSort] = useState<"date" | "name">("date");
@@ -361,7 +370,6 @@ export default function Home() {
   const suggestionIndex = useMemo(() => buildSearchSuggestions(places), [places]);
   const searchSuggestions = useMemo(() => rankSearchSuggestions(suggestionIndex, searchQuery), [suggestionIndex, searchQuery]);
   const visiblePlaces = useMemo(() => places.filter((place) => {
-    if (!showZed && place.zedSource) return false;
     if (!selectedCategories.includes(place.category) || !selectedCountries.includes(place.country)) return false;
     if (topOnly && !place.top) return false;
     if (!searchTokens.length) return true;
@@ -370,7 +378,7 @@ export default function Home() {
       place.twitchCategory, place.twitchKeywords, place.country, countryNameHu(place.country),
     ].join(" "));
     return searchTokens.every((token) => haystack.includes(token));
-  }), [places, searchTokens, selectedCategories, selectedCountries, showZed, topOnly]);
+  }), [places, searchTokens, selectedCategories, selectedCountries, topOnly]);
   const listPlaces = useMemo(() => {
     const items = visiblePlaces.filter((place) => placeIsInViewport(place, viewportBounds)
       && placeIsInVisibleMapArea(place, mapRef.current, listOpen, listPanelRef.current)
@@ -389,7 +397,7 @@ export default function Home() {
   const highlightedPlace = hoveredListPlace ?? mapHoveredPlace;
   const viewportHidesClips = visiblePlaces.some((place) => !placeIsInViewport(place, viewportBounds)
     || !placeIsInVisibleMapArea(place, mapRef.current, listOpen, listPanelRef.current));
-  const hasActiveFilters = !showZed || topOnly || listTopOnly || Boolean(searchTokens.length)
+  const hasActiveFilters = topOnly || listTopOnly || Boolean(searchTokens.length)
     || selectedCategories.length !== categories.length || selectedCountries.length !== countries.length || viewportHidesClips;
 
   useEffect(() => { listOpenRef.current = listOpen; setViewportRevision((revision) => revision + 1); }, [listOpen]);
@@ -411,12 +419,15 @@ export default function Home() {
   useEffect(() => {
     let active = true;
     const endpoint = "/api/live";
+    const checkLive = () => fetch(endpoint).then((response) => response.ok ? response.json() : { online: false })
+      .then((payload: { online?: boolean }) => { if (active) setOnline(Boolean(payload.online)); })
+      .catch(() => {});
+    let interval = 0;
     const timer = window.setTimeout(() => {
-      fetch(endpoint).then((response) => response.ok ? response.json() : { online: false })
-        .then((payload: { online?: boolean }) => { if (active) setOnline(Boolean(payload.online)); })
-        .catch(() => {});
+      checkLive();
+      interval = window.setInterval(checkLive, 60_000);
     }, 1600);
-    return () => { active = false; window.clearTimeout(timer); };
+    return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); };
   }, []);
 
   useEffect(() => {
@@ -473,24 +484,20 @@ export default function Home() {
         glowTimer = window.setTimeout(() => {
           if (!map.getLayer("clip-points") || !map.hasImage("top-star")) return;
           const startedAt = performance.now();
-          const normal = [57, 217, 204];
-          const highlight = [143, 245, 235];
+          const normal = [217, 130, 130];
+          const highlight = [255, 193, 193];
           const render = (now: number) => {
             const progress = Math.min(1, (now - startedAt) / 440);
             const strength = Math.sin(progress * Math.PI);
             const color = normal.map((channel, index) => Math.round(channel + (highlight[index] - channel) * strength));
-            map.setPaintProperty("clip-points", "circle-color", ["case", ["get", "zedSource"], "#f6bd7b", ["get", "linked"], `rgb(${color.join(",")})`, "#7c9299"]);
+            map.setPaintProperty("clip-points", "circle-color", ["case", ["get", "linked"], `rgb(${color.join(",")})`, "#a76d73"]);
             const glowingStar = makeTopStar(strength);
             if (glowingStar) map.updateImage("top-star", glowingStar);
-            const glowingZedStar = makeTopStar(strength, true);
-            if (glowingZedStar && map.hasImage("zed-top-star")) map.updateImage("zed-top-star", glowingZedStar);
             if (progress < 1) glowFrame = window.requestAnimationFrame(render);
             else {
-              map.setPaintProperty("clip-points", "circle-color", ["case", ["get", "zedSource"], "#f6bd7b", ["get", "linked"], "#39d9cc", "#7c9299"]);
+              map.setPaintProperty("clip-points", "circle-color", ["case", ["get", "linked"], "#d98282", "#a76d73"]);
               const baseStar = makeTopStar();
               if (baseStar) map.updateImage("top-star", baseStar);
-              const baseZedStar = makeTopStar(0, true);
-              if (baseZedStar && map.hasImage("zed-top-star")) map.updateImage("zed-top-star", baseZedStar);
             }
           };
           glowFrame = window.requestAnimationFrame(render);
@@ -539,8 +546,6 @@ export default function Home() {
 
         const star = makeTopStar();
         if (star) map.addImage("top-star", star, { pixelRatio: 2 });
-        const zedStar = makeTopStar(0, true);
-        if (zedStar) map.addImage("zed-top-star", zedStar, { pixelRatio: 2 });
         const titleBackground = makeTitleLabelBackground();
         if (titleBackground) {
           map.addImage("title-label-background", titleBackground, {
@@ -554,7 +559,7 @@ export default function Home() {
           });
         }
         map.addSource("clips", {
-          type: "geojson", data: placesToGeoJson(places), cluster: true, clusterMaxZoom: 16, clusterRadius: 22,
+          type: "geojson", data: placesToGeoJson(places), cluster: true, clusterMaxZoom: 16, clusterRadius: 52,
         });
         map.addSource("active-clip", { type: "geojson", data: placesToGeoJson([]) });
         map.addSource("hovered-label", { type: "geojson", data: placesToGeoJson([]) });
@@ -563,7 +568,7 @@ export default function Home() {
           id: "clip-clusters", type: "circle", source: "clips", filter: ["has", "point_count"],
           paint: {
             "circle-radius": ["step", ["get", "point_count"], 17.5, 10, 21, 100, 24],
-            "circle-color": "#12334a", "circle-stroke-color": "#43dfd1", "circle-stroke-width": 2,
+            "circle-color": "#8f4650", "circle-stroke-color": "#f5b3b3", "circle-stroke-width": 2,
           },
         });
         map.addLayer({
@@ -582,16 +587,16 @@ export default function Home() {
           filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "top"], false]],
           paint: {
             "circle-radius": ["case", ["get", "linked"], 5.5, 4.5],
-            "circle-color": ["case", ["get", "zedSource"], "#f6bd7b", ["get", "linked"], "#39d9cc", "#7c9299"],
+            "circle-color": ["case", ["get", "linked"], "#d98282", "#a76d73"],
             "circle-color-transition": { duration: 0, delay: 0 },
-            "circle-stroke-color": "#071827", "circle-stroke-width": 1.5,
+            "circle-stroke-color": "#f5b3b3", "circle-stroke-width": 1.5,
           },
         });
         map.addLayer({
           id: "top-points", type: "symbol", source: "clips",
           filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "top"], true]],
           layout: {
-            "icon-image": ["case", ["get", "zedSource"], "zed-top-star", "top-star"], "icon-size": 0.55, "icon-allow-overlap": true,
+            "icon-image": "top-star", "icon-size": 0.55, "icon-allow-overlap": true,
             "icon-rotation-alignment": "viewport", "icon-pitch-alignment": "viewport", "icon-keep-upright": true,
           },
         });
@@ -637,8 +642,8 @@ export default function Home() {
           filter: ["==", ["get", "top"], false],
           paint: {
             "circle-radius": ["case", ["get", "linked"], 10.5, 8.25],
-            "circle-color": ["case", ["get", "zedSource"], "#ffd19d", ["get", "linked"], "#55eadc", "#91a5ac"],
-            "circle-stroke-color": ["case", ["get", "zedSource"], "#fff0dc", "#b9fff7"], "circle-stroke-width": 2, "circle-blur": 0.06,
+            "circle-color": ["case", ["get", "linked"], "#ee9a9a", "#b97a80"],
+            "circle-stroke-color": "#ffd1d1", "circle-stroke-width": 2, "circle-blur": 0.06,
           },
         });
         map.addLayer({
@@ -646,7 +651,7 @@ export default function Home() {
           filter: ["==", ["get", "top"], true],
           paint: {
             "circle-radius": 14, "circle-color": "rgba(0, 0, 0, 0)",
-            "circle-stroke-color": ["case", ["get", "zedSource"], "#ffd19d", "#65eadf"], "circle-stroke-width": 2.1, "circle-stroke-opacity": 0.8,
+            "circle-stroke-color": "#f5b3b3", "circle-stroke-width": 2.1, "circle-stroke-opacity": 0.8,
           },
         }, "top-points");
         map.addLayer({
@@ -660,7 +665,7 @@ export default function Home() {
           id: "active-cluster", type: "circle", source: "active-cluster",
           paint: {
             "circle-radius": ["step", ["get", "point_count"], 19.25, 10, 23, 100, 26.5],
-            "circle-color": "#18435e", "circle-stroke-color": "#65eadf", "circle-stroke-width": 2.3,
+            "circle-color": "#984b55", "circle-stroke-color": "#f5b3b3", "circle-stroke-width": 2.3,
           },
         });
 
@@ -974,7 +979,6 @@ export default function Home() {
     setSelectedCategories(categories);
     setSelectedCountries(countries);
     setTopOnly(false);
-    setShowZed(true);
     setListTopOnly(false);
     setSearchQuery("");
     setSearchFocused(false);
@@ -1000,12 +1004,12 @@ export default function Home() {
     <main className="site-shell">
       <header className="site-header">
         <div className="identity">
-          <div className="wordmark" aria-label="Geri Clips"><span>Geri</span><em>Clips</em></div>
+          <div className="wordmark" aria-label="JamalClips"><span>Jamal</span><em>Clips</em></div>
         </div>
         <a className="twitch-button" href={TWITCH_URL} target="_blank" rel="noreferrer">Twitch profil</a>
         {online && (
           <a className="live-button" href={TWITCH_URL} target="_blank" rel="noreferrer">
-            <span className="live-led" aria-hidden="true" />LIVE
+            <span className="live-led" aria-hidden="true" />LIVE NOW
           </a>
         )}
       </header>
@@ -1024,7 +1028,7 @@ export default function Home() {
                 event.preventDefault(); chooseSuggestion(searchSuggestions[suggestionCursor]);
               } else if (event.key === "Escape") setSearchFocused(false);
             }}
-            placeholder="Balaton, vicces, zene, ..." aria-label="Keresés a klipek között"
+            placeholder="NPC, Carspotting, előzés, ..." aria-label="Keresés a klipek között"
             aria-autocomplete="list" aria-controls="search-suggestions" />
           {searchQuery && <button className="search-clear" onClick={() => updateSearchQuery("")} aria-label="Keresés törlése">×</button>}
           {searchFocused && normalizeSearch(searchQuery).length >= 2 && (
@@ -1040,11 +1044,6 @@ export default function Home() {
             </div>
           )}
         </div>
-        <button className={`title-toggle zed-toggle ${showZed ? "active" : ""}`} type="button" role="switch"
-          aria-checked={showZed} aria-label="Zed streamjéből származó klipek megjelenítése"
-          onClick={() => setShowZed((visible) => !visible)}>
-          <span className="title-toggle-track" aria-hidden="true"><i /></span><b>Zed streamjéből</b>
-        </button>
         <button className={`title-toggle ${showTitles ? "active" : ""}`} type="button" role="switch"
           aria-checked={showTitles} aria-label="Klipcímek megjelenítése"
           onClick={() => setShowTitles((visible) => !visible)}>
@@ -1149,7 +1148,7 @@ export default function Home() {
         transform: `rotate(${connectorLine.angle}deg)`,
       }} />}
 
-      <div ref={mapContainer} className="map" aria-label="Geri klipjeinek interaktív térképe"
+      <div ref={mapContainer} className="map" aria-label="Jamal klipjeinek interaktív térképe"
         data-visible-count={visiblePlaces.length} />
       <div ref={mapLoadingRef} className="map-loading" role="status" aria-label="Térkép betöltése">
         <span className="map-loading-spinner" aria-hidden="true" />

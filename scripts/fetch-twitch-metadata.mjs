@@ -1,10 +1,10 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = resolve(ROOT, "data", "twitch-meta.json");
-const SOURCE = "1rmCpUX9JnmWHKrqDtfjcjkf0eb1I5lQlg22QJc0d60w";
+const PLACES = resolve(ROOT, "data", "places.json");
 const clientId = process.env.TWITCH_CLIENT_ID ?? "";
 const clientSecret = process.env.TWITCH_CLIENT_SECRET ?? "";
 
@@ -18,13 +18,9 @@ const tokenResponse = await fetch(tokenUrl, { method: "POST" });
 if (!tokenResponse.ok) throw new Error(`Twitch token request returned ${tokenResponse.status}`);
 const { access_token: token } = await tokenResponse.json();
 
-const sheetResponse = await fetch(`https://docs.google.com/spreadsheets/d/${SOURCE}/gviz/tq?tqx=out:json&gid=0`);
-if (!sheetResponse.ok) throw new Error(`Sheet returned ${sheetResponse.status}`);
-const raw = await sheetResponse.text();
-const payload = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-const value = (row, index) => row.c?.[index]?.v ?? "";
-const clipIds = payload.table.rows
-  .map((row) => String(value(row, 1)).match(/\/clip\/([^/?#]+)/)?.[1] ?? "")
+const places = JSON.parse(readFileSync(PLACES, "utf8"));
+const clipIds = places
+  .map((place) => String(place.clipUrl).match(/\/clip\/([^/?#]+)/)?.[1] ?? "")
   .filter(Boolean);
 
 const twitchHeaders = { Authorization: `Bearer ${token}`, "Client-Id": clientId };
