@@ -37,5 +37,8 @@ if (html.includes("setMissingStyleImageResolver")) {
 if (html.includes("Zed streamjéből") || html.includes("zed-toggle")) {
   throw new Error("The hidden Zed source filter must not be included");
 }
+if (!html.includes("autoplay=false&muted=false") || html.includes("autoplay=true&muted=true")) {
+  throw new Error("Twitch clips must load unmuted and wait for the user to press Play");
+}
 
 console.log("Static HTML syntax and feature checks passed.");

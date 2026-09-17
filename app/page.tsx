@@ -309,7 +309,7 @@ function ClipPlayer({ clipId, parent, title }: { clipId: string; parent: string;
     const frame = frameRef.current;
     if (!frame) return;
     const requestId = window.requestAnimationFrame(() => {
-      frame.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(clipId)}&parent=${encodeURIComponent(parent)}&autoplay=true&muted=true`;
+      frame.src = `https://clips.twitch.tv/embed?clip=${encodeURIComponent(clipId)}&parent=${encodeURIComponent(parent)}&autoplay=false&muted=false`;
     });
     return () => window.cancelAnimationFrame(requestId);
   }, [clipId, parent]);
