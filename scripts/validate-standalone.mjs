@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const scriptStart = html.indexOf("<script>") + "<script>".length;
+const scriptStart = html.indexOf('<script type="module">') + '<script type="module">'.length;
 const scriptEnd = html.indexOf("</script>", scriptStart);
-if (scriptStart < "<script>".length || scriptEnd < 0) throw new Error("Standalone script not found");
+if (scriptStart < '<script type="module">'.length || scriptEnd < 0) throw new Error("Standalone module script not found");
 
 const code = html.slice(scriptStart, scriptEnd);
-new Function(code);
+const syntax = spawnSync(process.execPath, ["--input-type=module", "--check"], { input: code, encoding: "utf8" });
+if (syntax.status !== 0) throw new Error(syntax.stderr || syntax.error?.message || "Standalone syntax check failed");
+if (html.includes("unpkg.com/maplibre-gl")) throw new Error("Standalone must use the bundled MapLibre version");
 
 const expectedDescription = "A Courier's Life emlékezetes Twitch-klipjei térképen.";
 const requiredText = [

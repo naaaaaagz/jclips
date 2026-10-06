@@ -260,3 +260,6 @@ button, a, input { font: inherit; -webkit-tap-highlight-color: transparent; }
   .clip-modal { max-height: calc(100dvh - 20px); padding: 12px; border-radius: 15px; }
   .modal-heading { gap: 12px; padding: 2px 2px 11px; }
 }
+
+.map-data-error { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 7; max-width: calc(100% - 32px); padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; text-align: center; }
+.map-data-error button { color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }

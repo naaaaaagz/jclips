@@ -14,3 +14,9 @@ Opening `index.html` directly still displays the map and pins, but Twitch reject
 pnpm install
 pnpm dev
 ```
+
+## Verify local changes
+
+Run `node scripts/generate-standalone.mjs`, `node scripts/validate-standalone.mjs`, `node --test scripts/clip-data.test.mjs`, and `pnpm run build`. The generator uses `data/places.json` and updates the saved fallback data and local MapLibre assets together.
+
+The app uses the saved data if `/api/places` cannot load and offers a retry. LIVE status requires Twitch credentials on the server; failed checks hide the badge. The standalone local server serves only map files and public assets.
