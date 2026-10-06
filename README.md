@@ -8,6 +8,14 @@ Double-click `open-map.cmd`. It opens the standalone map through a small local w
 
 Opening `index.html` directly still displays the map and pins, but Twitch rejects clip embeds on `file://` pages.
 
+## Update the static page
+
+`node scripts/generate-standalone.mjs` rebuilds `index.html` from `data/places.json` and copies the map assets next to it. Check the result with `node scripts/validate-standalone.mjs` and `node --test scripts/clip-data.test.mjs`.
+
+To add each clip's Twitch category (used by search), put `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` in a local `.env` file (git ignores it), run `node --env-file=.env scripts/fetch-twitch-metadata.mjs`, then rebuild the page. The script saves `data/twitch-meta.json` and writes the categories into `data/places.json`.
+
+The LIVE button needs a hosted copy of `app/api/live/route.ts` with `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. GitHub Pages cannot run it, so the static page only checks when `LIVE_URL` in `scripts/generate-standalone.mjs` is set to that full URL. When the site moves to its own domain, also update `SITE_URL` there and the allowed origin in `app/api/live/route.ts`.
+
 ## Local development
 
 ```bash

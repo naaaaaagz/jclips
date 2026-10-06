@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const allowedFiles = new Set([
-  "index.html", "maplibre-gl.mjs", "maplibre-gl-shared.mjs", "maplibre-gl-worker.mjs", "maplibre-gl.css",
-  ...readdirSync(new URL("../public/", import.meta.url)).filter((name) => /\.(png|ico|webmanifest|xml|geojson)$/.test(name)),
+  "index.html", "maplibre-gl.mjs", "maplibre-gl-shared.mjs", "maplibre-gl-worker.mjs",
+  ...readdirSync(new URL("../public/", import.meta.url)).filter((name) => /\.(png|ico|webmanifest|xml|geojson)$/.test(name) && name !== "favicon-source.png"),
 ]);
 const port = 4173;
 const types = {

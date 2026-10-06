@@ -10,6 +10,7 @@ const code = html.slice(scriptStart, scriptEnd);
 const syntax = spawnSync(process.execPath, ["--input-type=module", "--check"], { input: code, encoding: "utf8" });
 if (syntax.status !== 0) throw new Error(syntax.stderr || syntax.error?.message || "Standalone syntax check failed");
 if (html.includes("unpkg.com/maplibre-gl")) throw new Error("Standalone must use the bundled MapLibre version");
+if (/fetch\(["']\/api\//.test(code)) throw new Error("GitHub Pages has no /api routes; use a full URL");
 
 const expectedDescription = "A Courier's Life emlékezetes Twitch-klipjei térképen.";
 const requiredText = [
@@ -27,6 +28,9 @@ const requiredText = [
   "list-tab-wiggle",
   "https://www.twitch.tv/acourierslife",
   'sizes="96x96" href="./favicon-96x96.png"',
+  '<link rel="modulepreload" href="./maplibre-gl-shared.mjs">',
+  'class="map-loading visible"',
+  "Twitch-profil",
 ];
 for (const value of requiredText) {
   if (!html.includes(value)) throw new Error(`Missing standalone output: ${value}`);
@@ -37,7 +41,7 @@ if (html.includes('"icon-offset":[0,-13]')) {
 if (html.includes("setMissingStyleImageResolver")) {
   throw new Error("Raster-generated cluster icons must not be reintroduced");
 }
-if (html.includes("Zed streamjéből") || html.includes("zed-toggle")) {
+if (html.includes("Zed streamjéből") || html.includes("zed-toggle") || html.includes("zedSource")) {
   throw new Error("The hidden Zed source filter must not be included");
 }
 if (!html.includes("autoplay=false&muted=false") || html.includes("autoplay=true&muted=true")) {

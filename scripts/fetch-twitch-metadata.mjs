@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getClipId } from "../lib/clip-data.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = resolve(ROOT, "data", "twitch-meta.json");
@@ -10,18 +11,16 @@ const clientSecret = process.env.TWITCH_CLIENT_SECRET ?? "";
 
 if (!clientId || !clientSecret) throw new Error("TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are required");
 
-const tokenUrl = new URL("https://id.twitch.tv/oauth2/token");
-tokenUrl.searchParams.set("client_id", clientId);
-tokenUrl.searchParams.set("client_secret", clientSecret);
-tokenUrl.searchParams.set("grant_type", "client_credentials");
-const tokenResponse = await fetch(tokenUrl, { method: "POST" });
+// Send the secret in the request body, never in the URL.
+const tokenResponse = await fetch("https://id.twitch.tv/oauth2/token", {
+  method: "POST",
+  body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
+});
 if (!tokenResponse.ok) throw new Error(`Twitch token request returned ${tokenResponse.status}`);
 const { access_token: token } = await tokenResponse.json();
 
 const places = JSON.parse(readFileSync(PLACES, "utf8"));
-const clipIds = places
-  .map((place) => String(place.clipUrl).match(/\/clip\/([^/?#]+)/)?.[1] ?? "")
-  .filter(Boolean);
+const clipIds = [...new Set(places.map((place) => getClipId(String(place.clipUrl))).filter(Boolean))];
 
 const twitchHeaders = { Authorization: `Bearer ${token}`, "Client-Id": clientId };
 const clips = [];
@@ -55,3 +54,14 @@ const metadata = Object.fromEntries(clips.map((clip) => [clip.id, {
 mkdirSync(dirname(OUTPUT), { recursive: true });
 writeFileSync(OUTPUT, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
 console.log(`Wrote metadata for ${Object.keys(metadata).length} clips to ${OUTPUT}`);
+
+// Copy the Twitch category into the clip data so search can use it.
+let updated = 0;
+for (const place of places) {
+  const twitch = metadata[getClipId(String(place.clipUrl))];
+  if (!twitch) continue;
+  place.twitchCategory = twitch.category;
+  updated += 1;
+}
+writeFileSync(PLACES, `${JSON.stringify(places, null, 2)}\n`, "utf8");
+console.log(`Updated the Twitch category of ${updated}/${places.length} clips in ${PLACES}`);
